@@ -31,6 +31,9 @@ async def consume_messages(topic, bootstrap_servers):
                 db_insert_product = add_new_product(
                     product_data=Product(**product_data), session=session)
                 print("DB_INSERT_PRODUCT", db_insert_product)
+            
+            
+            
                 
                 # Event EMIT In NEW TOPIC
 
@@ -39,3 +42,6 @@ async def consume_messages(topic, bootstrap_servers):
     finally:
         # Ensure to close the consumer when done.
         await consumer.stop()
+
+
+

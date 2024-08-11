@@ -44,13 +44,16 @@ app = FastAPI(
 )
 
 
+
+
 @app.get("/")
 def read_root():
     return {"Hello": "Product Service"}
 
 
 @app.post("/manage-products/", response_model=Product)
-async def create_new_product(product: Product, session: Annotated[Session, Depends(get_session)], producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
+async def create_new_product(product: Product, session: Annotated[Session, Depends(get_session)], 
+producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
     """ Create a new product and send it to Kafka"""
 
     product_dict = {field: getattr(product, field) for field in product.dict()}
@@ -58,7 +61,7 @@ async def create_new_product(product: Product, session: Annotated[Session, Depen
     print("product_JSON:", product_json)
     # Produce message
     await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, product_json)
-    # new_product = add_new_product(product, session)
+    #new_product = add_new_product(product, session)
     return product
 
 
@@ -71,6 +74,7 @@ def call_all_products(session: Annotated[Session, Depends(get_session)]):
 @app.get("/manage-products/{product_id}", response_model=Product)
 def get_single_product(product_id: int, session: Annotated[Session, Depends(get_session)]):
     """ Get a single product by ID"""
+
     try:
         return get_product_by_id(product_id=product_id, session=session)
     except HTTPException as e:
@@ -79,26 +83,97 @@ def get_single_product(product_id: int, session: Annotated[Session, Depends(get_
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# @app.delete("/manage-products/{product_id}", response_model=dict)
+# def delete_single_product(product_id: int, session: Annotated[Session, Depends(get_session)]):
+#     """ Delete a single product by ID"""
+
+
+#     try:
+#         return delete_product_by_id(product_id=product_id, session=session)
+#     except HTTPException as e:
+#         raise e
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.delete("/manage-products/{product_id}", response_model=dict)
-def delete_single_product(product_id: int, session: Annotated[Session, Depends(get_session)]):
-    """ Delete a single product by ID"""
+async def delete_single_product(
+    product_id: int,
+    session: Annotated[Session, Depends(get_session)],
+    producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]
+):
+    """ Delete a single product by ID and send a message to Kafka"""
+
     try:
-        return delete_product_by_id(product_id=product_id, session=session)
+        # Delete the product from the database
+        deleted_product = delete_product_by_id(product_id=product_id, session=session)
+        if not deleted_product:
+            raise HTTPException(status_code=404, detail="Product not found")
+
+        # Prepare the Kafka message
+        product_dict = {"product_id": product_id, "action": "delete"}
+        product_json = json.dumps(product_dict).encode("utf-8")
+        print("product_JSON:", product_json)
+
+        # Produce message to Kafka
+        await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, product_json)
+
+        # Return a success response
+        return {"message": "Product deleted successfully", "product_id": product_id}
+
     except HTTPException as e:
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+
+# @app.patch("/manage-products/{product_id}", response_model=Product)
+# def update_single_product(product_id: int, product: ProductUpdate, session: Annotated[Session, Depends(get_session)], producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
+#     """ Update a single product by ID"""
+#     try:
+#         return update_product_by_id(product_id=product_id, to_update_product_data=product, session=session)
+#     except HTTPException as e:
+#         raise e
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
 
 @app.patch("/manage-products/{product_id}", response_model=Product)
-def update_single_product(product_id: int, product: ProductUpdate, session: Annotated[Session, Depends(get_session)]):
-    """ Update a single product by ID"""
+async def update_single_product(
+    product_id: int,
+    product: ProductUpdate,
+    session: Annotated[Session, Depends(get_session)],
+    producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]
+):
+    """ Update a single product by ID and send a message to Kafka"""
     try:
-        return update_product_by_id(product_id=product_id, to_update_product_data=product, session=session)
+        # Update the product in the database
+        updated_product = update_product_by_id(
+            product_id=product_id, 
+            to_update_product_data=product, 
+            session=session
+        )
+        if not updated_product:
+            raise HTTPException(status_code=404, detail="Product not found")
+
+        # Prepare the Kafka message
+        product_dict = {"product_id": product_id, "action": "update", "updated_data": product.dict()}
+        product_json = json.dumps(product_dict).encode("utf-8")
+        print("product_JSON:", product_json)
+
+        # Produce message to Kafka
+        await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, product_json)
+
+        # Return the updated product
+        return updated_product
+
     except HTTPException as e:
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+
 
 @app.get("/hello-ai")
 def get_ai_response(prompt:str):
