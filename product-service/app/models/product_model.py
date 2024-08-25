@@ -24,7 +24,7 @@ class ProductRating(SQLModel, table=True):
     review: str | None = None
     product: "Product" = Relationship(back_populates="rating")
     
-    user_id: int # One to Manu Relationship
+    # user_id: int # One to Manu Relationship
 
 class ProductRatingUpdate(SQLModel):
     rating: int | None = None
@@ -40,3 +40,6 @@ class ProductUpdate(SQLModel):
     weight: float | None = None
     category: str | None = None
     sku: str | None = None
+
+class ProductDelete(SQLModel):
+    id: int

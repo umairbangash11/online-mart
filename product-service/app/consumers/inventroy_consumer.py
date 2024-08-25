@@ -10,7 +10,7 @@ async def consume_inventory_messages(topic, bootstrap_servers):
     consumer = AIOKafkaConsumer(
         topic,
         bootstrap_servers=bootstrap_servers,
-        group_id="inventory-add-group",
+        group_id="inventory-add-groups",
         # auto_offset_reset="earliest",
     )
 

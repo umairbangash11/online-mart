@@ -53,6 +53,31 @@ services:
     ports:
       - "8006:8000" # Expose container port 8000 to host port 8000
 
+  order-service:
+    image: order-mart-api
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./order-service:/code # Sync local development directory with the container
+    depends_on:
+      - broker
+      - postgres_order_db
+    ports:
+      - "8007:8000" # Expose container port 8000 to host port 8000
+
+  user-service:
+    image: user-mart-api
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./user-service:/code # Sync local development directory with the container
+    depends_on:
+      - broker
+      - postgres_user_db
+    ports:
+      - "8008:8000" # Expose container port 8000 to host port 8000
 
   postgres_db:
     image: postgres:latest # Use the official PostgreSQL image
@@ -92,6 +117,34 @@ services:
       - "5482:5432"
     volumes:
       - postgres_inventory_db:/var/lib/postgresql/data
+   
+  postgres_order_db:
+    image: postgres:latest # Use the official PostgreSQL image
+    restart: always
+    container_name: PostgresOrderCont
+    environment:
+      - POSTGRES_USER=ziakhan
+      - POSTGRES_PASSWORD=my_password
+      - POSTGRES_DB=mydatabase
+      
+    ports:
+      - "5483:5432"
+    volumes:
+      - postgres_order_db:/var/lib/postgresql/data
+
+
+  postgres_user_db:
+    image: postgres:latest # Use the official PostgreSQL image
+    restart: always
+    container_name: PostgresUserCont
+    environment:
+      - POSTGRES_USER=ziakhan
+      - POSTGRES_PASSWORD=my_password
+      - POSTGRES_DB=mydatabase
+    ports:
+      - "5484:5432"
+    volumes:
+      - postgres_user_db:/var/lib/postgresql/data
 
 
   broker:
@@ -134,6 +187,10 @@ volumes:
   postgres_product_db:
     driver: local
   postgres_inventory_db:
+    driver: local
+  postgres_order_db:
+    driver: local
+  postgres_user_db:
     driver: local
 
 networks:

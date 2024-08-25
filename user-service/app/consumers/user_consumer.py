@@ -1,16 +1,16 @@
-from aiokafka import AIOKafkaConsumer
+from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 import json
-
+from app.models.user_model import User, UserCreate
+from app.crud.user_crud import create_user
 from app.deps import get_session
-from app.crud.inventory_crud import add_new_inventory_item
-from app.models.inventory_model import InventoryItem
+
 
 async def consume_messages(topic, bootstrap_servers):
     # Create a consumer instance.
     consumer = AIOKafkaConsumer(
         topic,
         bootstrap_servers=bootstrap_servers,
-        group_id="add-stock-consumer",
+        group_id="user-event-consumer",
         # auto_offset_reset="earliest",
     )
 
@@ -19,25 +19,27 @@ async def consume_messages(topic, bootstrap_servers):
     try:
         # Continuously listen for messages.
         async for message in consumer:
-            print("RAW ADD STOCK CONSUMER MESSAGE")
+            print("RAW!!")
             print(f"Received message on topic {message.topic}")
 
-            inventory_data = json.loads(message.value.decode())
-            print("TYPE", (type(inventory_data)))
-            print(f"Inventory Data {inventory_data}")
+            user_data = json.loads(message.value.decode())
+            print("TYPE", (type(user_data)))
+            print(f"Product Data {user_data}")
 
             with next(get_session()) as session:
                 print("SAVING DATA TO DATABSE")
-                # inventory_item_data: InventoryItem
-                db_insert_product = add_new_inventory_item(
-                    inventory_item_data=InventoryItem(**inventory_data), 
-                    session=session)
-                
-                print("DB_INSERT_STOCK", db_insert_product)
-
+                db_insert_user = create_user(
+                    user_data=User(**user_data), session=session)
+                print("DB_INSERT_USER", db_insert_user)
+            
+        
+                # Event EMIT In NEW TOPIC
+            
             # Here you can add code to process each message.
             # Example: parse the message, store it in a database, etc.
     finally:
         # Ensure to close the consumer when done.
         await consumer.stop()
+
+
 
